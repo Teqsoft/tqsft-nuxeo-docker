@@ -67,6 +67,8 @@ RUN chown -R 1000:0 /etc/nuxeo && chmod g+rwX /etc/nuxeo && rm -f $NUXEO_HOME/bi
 
 ENV PATH $NUXEO_HOME/bin:$PATH
 
+RUN chmod +x /docker-entrypoint.sh
+
 WORKDIR $NUXEO_HOME
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]

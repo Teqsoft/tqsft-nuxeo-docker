@@ -17,5 +17,6 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
     - name: Build the Docker image
       run: |
-              docker build . --file Dockerfile --tag ghcr.io/teqsoft/tqsft-nuxeo-docker:$(date +%s)
-              docker push ghcr.io/teqsoft/tqsft-nuxeo-docker:$(date +%s)
+              VERSION=$(date +%s)
+              docker build . --file Dockerfile --tag ghcr.io/teqsoft/tqsft-nuxeo-docker:$VERSION
+              docker push ghcr.io/teqsoft/tqsft-nuxeo-docker:$VERSION

@@ -1,0 +1,172 @@
+<?xml version="1.0"?>
+<component name="org.nuxeo.ecm.directory.multi.storage.users">
+
+  <!-- the groups directories are required to make this bundle work -->
+  <require>org.nuxeo.ecm.directory.storage</require>
+  <require>org.nuxeo.ecm.platform.usermanager.UserManagerImpl</require>
+
+  <extension target="org.nuxeo.ecm.directory.ldap.LDAPDirectoryFactory" point="servers">
+    <server name="evertecinc">
+      <ldapUrl>ldap://10.182.62.80:389/</ldapUrl>
+      <bindDn>CN=Admin,OU=Users,OU=captivapoc,DC=captivapoc,DC=com</bindDn>
+      <bindPassword>${PASSWORD}</bindPassword>
+      <!-- Attempts to get a result when LDAP is temporary unavailable -->
+      <retries>2</retries>
+    </server>
+  </extension>
+
+  <extension target="org.nuxeo.ecm.directory.ldap.LDAPDirectoryFactory" point="directories">
+    <directory name="ldapUserDirectory">
+      <server>evertecinc</server>
+      <schema>user</schema>
+      <idField>username</idField>
+      <passwordField>password</passwordField>
+      <searchBaseDn>OU=captivapoc,DC=captivapoc,,DC=com</searchBaseDn>
+      <searchClass>person</searchClass>
+      <!-- use subtree if the people branch is nested -->
+      <searchScope>subtree</searchScope>
+      <readOnly>true</readOnly>
+      <!-- comment <cache* /> tags to disable the cache 
+      <cacheEntryName>ldap-user-entry-cache</cacheEntryName>
+      <cacheEntryWithoutReferencesName>ldap-user-entry-cache-without-references</cacheEntryWithoutReferencesName>
+      -->
+      <!--
+           If the id field is not returned by the search, we set it with the searched entry, probably the login.
+           Before setting it, you can change its case. Accepted values are 'lower' and 'upper',
+           anything else will not change the case.
+      -->
+      <missingIdFieldCase>lower</missingIdFieldCase>
+      <!-- Maximum number of entries returned by the search -->
+      <querySizeLimit>200</querySizeLimit>
+      <!-- Time to wait for a search to finish. 0 to wait indefinitely -->
+      <queryTimeLimit>0</queryTimeLimit>
+
+      <rdnAttribute>samaccountname</rdnAttribute>
+      <fieldMapping name="username">samaccountname</fieldMapping>
+      <fieldMapping name="password">userPassword</fieldMapping>
+      <fieldMapping name="firstName">cn</fieldMapping>
+      <fieldMapping name="lastName">sn</fieldMapping>
+      <fieldMapping name="company">telephoneNumber</fieldMapping>
+      <fieldMapping name="email">mail</fieldMapping>
+      <references>
+        <inverseReference field="groups" directory="multiGroupDirectory"
+          dualReferenceField="members" />
+      </references>
+    </directory>
+    <directory name="ldapGroupDirectory">
+      <!-- Reuse the default server configuration defined for ldapUserDirectory -->
+      <server>evertecinc</server>
+      <schema>group</schema>
+      <idField>groupname</idField>
+      <searchBaseDn>OU=captivapoc,DC=captivapoc,DC=com</searchBaseDn>
+      <!-- <searchFilter>
+        (|(objectClass=groupOfUniqueNames)(objectClass=groupOfURLs))
+      </searchFilter> -->
+      <searchScope>subtree</searchScope>
+      <readOnly>true</readOnly>
+      <!-- comment <cache* /> tags to disable the cache 
+      <cacheEntryName>ldap-group-entry-cache</cacheEntryName>
+      <cacheEntryWithoutReferencesName>ldap-group-entry-cache-without-references</cacheEntryWithoutReferencesName>
+        -->
+      <!-- Maximum number of entries returned by the search -->
+      <querySizeLimit>200</querySizeLimit>
+      <!-- Time to wait for a search to finish. 0 to wait indefinitely -->
+      <queryTimeLimit>5000</queryTimeLimit>
+      <rdnAttribute>ou</rdnAttribute>
+      <fieldMapping name="groupname">cn</fieldMapping>
+      <!-- Add another field to map reel group label -->
+      <fieldMapping name="grouplabel">cn</fieldMapping>
+      <references>
+        <ldapReference field="members" directory="ldapUserDirectory"
+          forceDnConsistencyCheck="false" staticAttributeId="uniqueMember"
+          dynamicAttributeId="memberURL" />
+        <!--
+        <ldapReference field="subGroups" directory="ldapGroupDirectory"
+          forceDnConsistencyCheck="false"  staticAttributeId="uniqueMember"
+          dynamicAttributeId="memberURL" />
+        <inverseReference field="parentGroups" directory="multiGroupDirectory"
+          dualReferenceField="subGroups" />
+          -->
+      </references>
+    </directory>
+  </extension>
+<!--
+  <extension target="org.nuxeo.ecm.directory.GenericDirectory" point="directories">
+    <directory name="genericUserDirectory" extends="template-user">
+      <schema>user</schema>
+      <idField>username</idField>
+      <passwordField>password</passwordField>
+      <passwordHashAlgorithm>SSHA</passwordHashAlgorithm>
+      <autoincrementIdField>false</autoincrementIdField>
+      <computeMultiTenantId>false</computeMultiTenantId>
+      <dataFile>users.csv</dataFile>
+      <createTablePolicy>on_missing_columns</createTablePolicy>
+      <querySizeLimit>50</querySizeLimit>
+      <references>
+        <inverseReference field="groups" directory="genericGroupDirectory"
+          dualReferenceField="members" />
+      </references>
+    </directory>
+    <directory name="genericGroupDirectory" extends="template-group">
+      <schema>group</schema>
+      <idField>groupname</idField>
+      <dataFile>groups.csv</dataFile>
+      <createTablePolicy>on_missing_columns</createTablePolicy>
+      <autoincrementIdField>false</autoincrementIdField>
+      <references>
+        <reference field="members" directory="multiUserDirectory"
+          name="user2group" source="groupId" target="userId" schema="user2group"
+          dataFile="user2group.csv" />
+        <reference field="subGroups" directory="genericGroupDirectory"
+          name="group2group" source="parentGroupId"
+          target="childGroupId" schema="group2group" />
+        <inverseReference field="parentGroups" directory="genericGroupDirectory"
+          dualReferenceField="subGroups" />
+      </references>
+    </directory>
+  </extension>
+  -->
+
+  <extension target="org.nuxeo.ecm.directory.multi.MultiDirectoryFactory" point="directories">
+    <directory name="multiUserDirectory">
+      <schema>user</schema>
+      <idField>username</idField>
+      <passwordField>password</passwordField>
+      <!-- <source name="userSource" creation="true">
+        <subDirectory name="genericUserDirectory" />
+      </source> -->
+      <source name="userLDAPsource">
+        <subDirectory name="ldapUserDirectory" />
+      </source>
+    </directory>
+    <directory name="multiGroupDirectory">
+      <schema>group</schema>
+      <idField>groupname</idField>
+      <!-- <source name="groupSource" creation="true">
+        <subDirectory name="genericGroupDirectory" />
+      </source> -->
+      <source name="groupLDAPsource">
+        <subDirectory name="ldapGroupDirectory" />
+      </source>
+    </directory>
+  </extension>
+
+  <extension target="org.nuxeo.ecm.platform.usermanager.UserService" point="userManager">
+    <userManager>
+      <defaultAdministratorId>stuart</defaultAdministratorId>
+      <defaultGroup>members</defaultGroup>
+      <users>
+        <directory>multiUserDirectory</directory>
+        <virtualUser id="MyAdministrator" searchable="false">
+          <password>secret</password>
+          <property name="firstName">Super</property>
+          <property name="lastName">Admin</property>
+          <group>administrators</group>
+        </virtualUser>
+      </users>
+      <groups>
+        <directory>multiGroupDirectory</directory>
+      </groups>
+    </userManager>
+  </extension>
+</component>
